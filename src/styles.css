@@ -4,3 +4,15 @@
 @import "../node_modules/primeng/resources/primeng.min.css";
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+::ng-deep body .ui-datepicker .ui-datepicker-header .ui-datepicker-title {
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    color: goldenrod;
+    }
+    
+    ::ng-deep .p-calendar {
+    height: 20px;
+    }
+   
