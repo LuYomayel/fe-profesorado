@@ -42,57 +42,49 @@ export class AlumnosComponent implements OnInit {
         telefono: ['', Validators.required],
         direccion: ['', Validators.required],
         fechaNac: ['', Validators.required],
-        email: ['', [Validators.required, Validators.email]],
+        email: ['', [Validators.email]],
       });
     }
 
   ngOnInit() {
-      this.alumnosService.getAlumnos().subscribe(data => this.alumnos = data)
+    this.getAlumnos();
+  }
+  getAlumnos(){
+    this.alumnosService.getAlumnos().subscribe(data => this.alumnos = data)
   }
   applyFilterGlobal($event:any, stringVal:string) {
     this.dt.filterGlobal(($event.target as HTMLInputElement).value, stringVal);
   }
   openNew() {
-      this.fechaNac = '';
-      this.alumno = {
-        nombre: '',
-        apellido: '',
-        telefono: '',
-        direccion: '',
-        dni: '',
-        idAlumno: 0,
-        // fechaNac: new Date(1990,1,1),
-        estado: 0
-      }
-      this.titulo = 'Agregar Alumno'
-      // this.product = {};
-      this.submitted = false;
-      this.alumnoDialog = true;
-  }
-
-  deleteSelectedProducts() {
-      this.confirmationService.confirm({
-          message: 'Are you sure you want to delete the selected products?',
-          header: 'Confirm',
-          icon: 'pi pi-exclamation-triangle',
-          accept: () => {
-
-              // this.alumnos = this.alumnos.filter(val => !this.selectedAlumnos.includes(val));
-              // console.log(this.selectedAlumnos)
-              // this.selectedAlumnos = [];
-              // this.messageService.add({severity:'success', summary: 'Successful', detail: 'Alumnos eliminados', life: 3000});
-          }
-      });
+    this.fechaNac = '';
+    this.alumno = {
+      nombre: '',
+      apellido: '',
+      telefono: '',
+      direccion: '',
+      dni: '',
+      idAlumno: 0,
+      // fechaNac: new Date(1990,1,1),
+      estado: 0,
+      
+    }
+    const {idAlumno, estado, ...alu} = this.alumno;
+    this.form.setValue({...alu, fechaNac:this.fechaNac, email: ''});
+    this.titulo = 'Agregar Alumno'
+    this.submitted = false;
+    this.alumnoDialog = true;
   }
 
   
 
   editAlumno(alumno: IAlumno) {
     const {idAlumno, estado, ...alu} = alumno;
+    this.alumno = alumno;
     let fechaNac;
     if(alu.fechaNac) {
       const newDate = new Date(alu.fechaNac)
       fechaNac = newDate.toISOString().split('T')[0];
+      this.fechaNac = fechaNac;
     }
     this.form.setValue({...alu, email: '', fechaNac})
     this.titulo = 'Editar Alumno';
@@ -105,9 +97,15 @@ export class AlumnosComponent implements OnInit {
           header: 'Confirmar',
           icon: 'pi pi-exclamation-triangle',
           accept: () => {
-              // this.products = this.products.filter(val => val.id !== product.id);
-              // this.product = {};
-              this.messageService.add({severity:'success', summary: 'Successful', detail: 'Alumno eliminado', life: 3000});
+            // console.log(this.alumno)  
+            this.alumnosService.deleteAlumno(alumno.idAlumno).subscribe(data => {
+              if(data.response == 'OK'){
+                this.getAlumnos()
+                this.messageService.add({severity:'success', summary: 'Successful', detail: 'Alumno eliminado', life: 3000});
+              }else{
+                this.messageService.add({severity:'error', summary: 'Server Error', detail: 'Hubo algun error al eliminar el alumno', life: 3000});
+              }
+            })
           }
       });
   }
@@ -120,31 +118,63 @@ export class AlumnosComponent implements OnInit {
   saveAlumno() {
       this.submitted = true;
       if (this.titulo === 'Editar Alumno') {
+
+        const {fechaNac} = this.form.value;
+        this.fechaNac = fechaNac;
+
         if(this.form.valid){
-          const alumno: IAlumno = { ... this.alumno }
+
+          if(this.fechaNac && !this.validarFecha()){
+            this.messageService.add({severity:'error', summary: 'Error', detail: 'La fecha de nacimiento debe ser menor a la fecha de hoy', life: 3000});
+            return;
+          }
+
+          const alumno: IAlumno = {...this.form.value, idAlumno: this.alumno.idAlumno};
           this.alumnosService.putAlumno(alumno).subscribe(result => {
-            console.log(result)
-            this.alumnosService.getAlumnos().subscribe(data => this.alumnos = data) 
-          })
-          // this.products[this.findIndexById(this.alumno.id)] = this.product;                
-          this.messageService.add({severity:'success', summary: 'Exitoso!', detail: 'Alumno actualizado', life: 3000});
+            if(result.response == 'OK'){
+              this.getAlumnos();
+              this.messageService.add({severity:'success', summary: 'Exitoso!', detail: 'Alumno actualizado', life: 3000});
+            }else{
+              this.messageService.add({severity:'error', summary: 'Server Error', detail: 'Hubo algun error al actualizar el alumno', life: 3000});
+            }
+          })            
+
         }else{
-          console.log('Form invalido', this.form.valid)
+          this.messageService.add({severity:'error', summary: 'Error', detail: 'Campos obligatorios vacíos', life: 3000});
+          return;
         }
       }
       else {
+        // Agregar alumno
+        const {email, fechaNac} = this.form.value;
+        this.alumno = this.form.value;
+        const alumno: DTOAlumno = {...this.alumno, email};
+        this.fechaNac = fechaNac;
+        this.email = email;
         if(this.form.valid){
           // this.alumno.fechaNac = this.fechaNac;
-          const alumno: DTOAlumno = { ... this.alumno, email: this.email}
+          if(this.fechaNac && !this.validarFecha()){
+            this.messageService.add({severity:'error', summary: 'Error', detail: 'La fecha de nacimiento debe ser menor a la fecha de hoy', life: 3000});
+            return;
+          }
+          if(!email){
+            this.messageService.add({severity:'error', summary: 'Error', detail: 'El campo email es obligatorio', life: 3000});
+            return;
+          }
           this.alumnosService.addAlumno(alumno).subscribe(result => {
-            console.log(result)
-            this.alumnosService.getAlumnos().subscribe(data => this.alumnos = data) 
+            if(result.response == 'OK'){
+              this.getAlumnos();
+              this.messageService.add({severity:'success', summary: 'Exitoso!', detail: 'Alumno agregado', life: 3000});
+            }else{
+              this.messageService.add({severity:'error', summary: 'Server Error', detail: 'Hubo algun error al agregar el alumno', life: 3000});
+            }
           });
-          this.messageService.add({severity:'success', summary: 'Exitoso!', detail: 'Alumno agregado', life: 3000});
         }else{
-          console.log('Form invalido', this.form.valid)
+          this.messageService.add({severity:'error', summary: 'Error', detail: 'Campos obligatorios vacíos', life: 3000});
+          return;
         }
       }
+
       this.alumno = {
         nombre: '',
         apellido: '',
@@ -160,11 +190,11 @@ export class AlumnosComponent implements OnInit {
       
   }
 
-  invertir(dia:number, mes:number, anio:number) {
-    const date=  dia.toString().padStart(2, '0');
-    const month=  mes.toString().padStart(2, '0');
-    // const year=  anio.toString().padStart(2, '0');
-    return `${date}/${month}/${anio}`
+  validarFecha(){
+    const newDate = new Date();
+    const parseFechaNac = new Date(this.fechaNac);
+    if(newDate.getFullYear() < parseFechaNac.getFullYear()) return false;
+    else return true;
   }
   
 }

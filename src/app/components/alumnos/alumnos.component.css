@@ -3,3 +3,7 @@ input::-webkit-calendar-picker-indicator{ display: none; }
 .p-field{
     margin-bottom: 0.5rem;
 }
+
+.p-invalid{
+    color:red;
+}
